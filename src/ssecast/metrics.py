@@ -5,6 +5,15 @@ from __future__ import annotations
 import numpy as np
 
 
+def normalized_rmse_np(prediction: np.ndarray, target: np.ndarray, eps: float = 1.0e-12) -> float:
+    """Return RMSE normalized by the root-mean-square target amplitude."""
+    prediction = np.asarray(prediction, dtype=np.float64)
+    target = np.asarray(target, dtype=np.float64)
+    if prediction.shape != target.shape:
+        raise ValueError(f"prediction and target must have the same shape, got {prediction.shape} and {target.shape}")
+    return float(np.sqrt(np.sum((prediction - target) ** 2) / (np.sum(target ** 2) + eps)))
+
+
 def anomaly_correlation_np(
     pred: np.ndarray,
     true: np.ndarray,
@@ -62,4 +71,3 @@ def anomaly_correlation_np(
     if not np.any(valid):
         return float("nan")
     return float(np.mean(numerator[valid] / denominator[valid]))
-

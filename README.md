@@ -2,7 +2,7 @@
 
 SSECast is a source-resolved framework for multi-horizon forecasting of slow-slip evolution from daily geodetic source fields. It advances two consecutive slip-potency fields to a sequence of future source fields and supports region-specific training for subduction margins.
 
-This repository is a clean, source-only release prepared from the operational research code. It contains the model, direct multi-horizon training and evaluation entry points, reference baselines and example regional configurations. Raw GNSS observations, source inversions, tremor catalogues, model checkpoints and forecast products are intentionally excluded.
+This repository is a clean, source-only release prepared from the operational research code. It contains the model, direct multi-horizon training and testing entry points, regional configuration templates and reproducibility notes. Raw GNSS observations, source inversions, tremor catalogues, model checkpoints and forecast products are intentionally excluded.
 
 ## Repository layout
 
@@ -12,8 +12,8 @@ SSECast/
 ├── data/                 # Local-data specification only; contents are ignored by Git
 ├── docs/                 # Data and reproducibility notes
 ├── outputs/              # Local run products; ignored by Git
-├── scripts/              # Direct-horizon training and evaluation commands
-└── src/ssecast/          # Model, forecast objective, metrics and baselines
+├── scripts/              # Training and independent-testing commands
+└── src/ssecast/          # Model, dataset, forecast objective and metrics
 ```
 
 ## Installation
@@ -32,9 +32,9 @@ Place processed regional files under `data/` following [data/README.md](data/REA
 ## Direct multi-horizon training
 
 ```bash
-python scripts/train_direct.py \
+python scripts/train.py \
   --config configs/cascadia.yaml \
-  --config-name finetune \
+  --config-name backbone \
   --run-name ssecast-14 \
   --horizon 14 \
   --device cuda \
@@ -43,19 +43,23 @@ python scripts/train_direct.py \
 
 Set `--horizon 30` and use a distinct `--run-name` to train a 30-day model. Training artefacts are written below `outputs/`.
 
-## Evaluation and reference forecasts
+## Independent testing
 
 ```bash
-python scripts/evaluate_direct.py \
+python scripts/test.py \
   --config configs/cascadia.yaml \
-  --config-name finetune \
+  --config-name backbone \
   --run-name ssecast-14 \
   --horizon 14 \
   --checkpoint outputs/cascadia/ssecast-14/training_checkpoints/best_model.ckpt \
   --device cuda
 ```
 
-The evaluator compares SSECast with causal persistence, linear extrapolation, local-trend, first-order autoregressive-increment, empirical-recurrence and nearest-observed-analogue baselines.
+Testing writes ssecast_metrics.csv and ssecast_metrics.png to the run directory. These report NRMSE and ACC for slip potency, slip potency along strike and slip potency along dip at each forecast lead time. Reference forecasts are not included.
+
+## Reproducible workflow
+
+Prepare the regional files using data/README.md, train with scripts/train.py, select best_model.ckpt using the eval split, and run scripts/test.py once on the held-out test split. See docs/workflow.md for the complete sequence and expected outputs.
 
 ## Scope
 
