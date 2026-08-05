@@ -1,0 +1,12 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+[project]
+name = "ssecast"
+version = "0.1.0"
+description = "Source-resolved multi-horizon slow-slip forecasting"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["einops>=0.7", "matplotlib>=3.7", "numpy>=1.24", "pandas>=2.0", "PyYAML>=6.0", "tensorboard>=2.14", "timm>=0.9", "torch>=2.0", "tqdm>=4.65", "transformers>=4.35"]
+[tool.setuptools.packages.find]
+where = ["src"]

@@ -1,0 +1,55 @@
+### base config ###
+full_field: &FULL_FIELD
+  run_num: "00"
+  exper_path: "outputs/nankai"
+  data_path: "data/nankai/slip_potency_smooth"
+  fault_path: "data/nankai/fault"
+  tremor_path: "data/nankai/tremor"
+  llh_path: "data/nankai/fault/llh"
+  mean_path: "data/nankai/norm_value/mean.npy"
+  std_path: "data/nankai/norm_value/std.npy"
+  device: "cuda"
+  use_tremor: !!bool False
+  early_stopping_patience: 5
+  batch_size: 54
+  dt: 1
+  lr:  0.00001
+  max_epochs: 100
+  img_size: 2943
+  patch_size: 3
+  fea_len: 2943
+  time_chans: 2
+  data_chans: 3
+  out_chans: 3
+
+# 训练基础模型
+backbone: &backbone
+  <<: *FULL_FIELD
+  run_num: "00"
+  two_step_training: !!bool False
+  checkpoint_path: "outputs/nankai/00/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "outputs/nankai/00/training_checkpoints/best_model.ckpt"
+  writer: "outputs/nankai/00/tensorboard"
+
+# 微调迭代的基础模型
+finetune: &finetune
+  <<: *backbone
+  run_num: "11"
+  lr:  0.0008
+  max_epochs: 30
+  batch_size: 16
+  pretrained: !!bool True
+  two_step_training: !!bool True
+  pretrained_ckpt_path: "outputs/nankai/00/training_checkpoints/backbone.ckpt"
+  checkpoint_path: "outputs/nankai/11/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "outputs/nankai/11/training_checkpoints/best_model.ckpt"
+  writer: "outputs/nankai/11/tensorboard"
+
+# backbone_fivedays: 
+#   <<: *FULL_FIELD
+#   run_num: "33"
+#   dt: 5
+#   two_step_training: !!bool False
+#   checkpoint_path: "outputs/nankai/33/training_checkpoints/backbone.ckpt"
+#   best_checkpoint_path: "outputs/nankai/33/training_checkpoints/best_model.ckpt"
+#   writer: "outputs/nankai/33/tensorboard"
