@@ -161,8 +161,8 @@ def ensure_direct_params(params, horizon=14, run_name="direct14_multihorizon_a")
     return params
 
 
-class CascadiaDirectDataset(Dataset):
-    """Input two cumulative fields; target is the next H cumulative fields."""
+class DirectHorizonDataset(Dataset):
+    """Input two cumulative source fields and target the next H fields."""
 
     def __init__(self, params, split: str):
         self.params = params
@@ -258,24 +258,3 @@ def direct_horizon_loss(
     delta_ref = spatial_weight * (true_seq - prev_true).pow(2)
     inc_loss = torch.sqrt(delta_err.sum() / (delta_ref.sum() + eps))
     return state_loss + float(delta_weight) * inc_loss
-
-
-def weighted_nrmse_np(pred, true, mask=None, eps=1e-12):
-    if mask is None:
-        mask = np.ones_like(true, dtype=bool)
-    w = mask.astype(np.float64)
-    return float(np.sqrt(np.sum(w * (pred - true) ** 2) / (np.sum(w * true**2) + eps)))
-
-
-def pcc_np(pred, true, mask=None, eps=1e-12):
-    if mask is not None:
-        pred = pred[mask]
-        true = true[mask]
-    pred = pred.reshape(-1) - pred.mean()
-    true = true.reshape(-1) - true.mean()
-    return float(np.sum(pred * true) / (np.sqrt(np.sum(pred**2) * np.sum(true**2)) + eps))
-
-
-def high_release_mask(true_delta, quantile=0.75):
-    threshold = np.quantile(np.abs(true_delta), quantile, axis=-1, keepdims=True)
-    return np.abs(true_delta) >= threshold

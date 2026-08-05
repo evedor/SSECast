@@ -19,7 +19,7 @@ from torch.utils.tensorboard import SummaryWriter
 from tqdm import tqdm
 
 from ssecast.direct import (
-    CascadiaDirectDataset,
+    DirectHorizonDataset,
     direct_horizon_loss,
     ensure_direct_params,
     load_one_step_backbone_except_head,
@@ -47,10 +47,10 @@ def seed_everything(seed=42):
 
 
 def parse_args():
-    parser = argparse.ArgumentParser(description="Direct 1-14 day multi-horizon training for SSECast.")
-    parser.add_argument("--config", default="config/cascadia.yaml")
-    parser.add_argument("--config-name", default="finetune")
-    parser.add_argument("--run-name", default="direct14_multihorizon_a")
+    parser = argparse.ArgumentParser(description="Train a direct multi-horizon SSECast model.")
+    parser.add_argument("--config", default="configs/cascadia.yaml")
+    parser.add_argument("--config-name", default="backbone")
+    parser.add_argument("--run-name", default="ssecast-14")
     parser.add_argument("--horizon", type=int, default=14)
     parser.add_argument("--device", default=None)
     parser.add_argument("--batch-size", type=int, default=4)
@@ -66,7 +66,7 @@ def parse_args():
     parser.add_argument(
         "--pretrained-one-step",
         default="",
-        help="Optional one-step SSECast checkpoint. Matching backbone weights are loaded; the 30-day head is new.",
+        help="Optional one-step checkpoint. Matching backbone weights are loaded and the direct head is newly initialized.",
     )
     return parser.parse_args()
 
@@ -146,8 +146,8 @@ def main():
     with open(result_dir / "train_args.json", "w", encoding="utf-8") as f:
         json.dump(vars(args), f, indent=2)
 
-    train_ds = CascadiaDirectDataset(params, "train")
-    eval_ds = CascadiaDirectDataset(params, "eval")
+    train_ds = DirectHorizonDataset(params, "train")
+    eval_ds = DirectHorizonDataset(params, "eval")
     train_loader = DataLoader(
         train_ds,
         batch_size=params.batch_size,
@@ -171,7 +171,7 @@ def main():
         info = load_one_step_backbone_except_head(model, args.pretrained_one_step, map_location=device)
         print(f"Loaded {len(info[loaded])} tensors from one-step checkpoint; skipped {len(info[skipped])} tensors.")
     else:
-        print("Training direct 1-14 day model from scratch: no pretrained checkpoint was loaded.")
+        print("Training direct multi-horizon model from scratch: no pretrained checkpoint was loaded.")
 
     optimizer = torch.optim.AdamW(model.parameters(), lr=params.lr, weight_decay=0.01, eps=1e-6)
     total_steps = params.max_epochs * len(train_loader)
@@ -183,6 +183,8 @@ def main():
     history = []
     last_ckpt = None
     t0 = time.time()
+    early_stopping_patience = int(getattr(params, "early_stopping_patience", 0))
+    epochs_without_improvement = 0
     for epoch in range(params.max_epochs):
         train_loss = run_epoch(
             model, train_loader, params, device, args, optimizer, scheduler, scaler, f"train {epoch + 1}/{params.max_epochs}"
@@ -208,10 +210,16 @@ def main():
         torch.save(ckpt, params.checkpoint_path)
         if eval_loss < best_eval:
             best_eval = eval_loss
+            epochs_without_improvement = 0
             torch.save(ckpt, params.best_checkpoint_path)
             print("Saved best checkpoint:", params.best_checkpoint_path)
+        else:
+            epochs_without_improvement += 1
         with open(result_dir / "train_history.json", "w", encoding="utf-8") as f:
             json.dump(history, f, indent=2)
+        if early_stopping_patience and epochs_without_improvement >= early_stopping_patience:
+            print(f"Early stopping after {epoch + 1} epochs without validation improvement.")
+            break
 
     if last_ckpt is not None:
         torch.save(last_ckpt, params.final_checkpoint_path)
