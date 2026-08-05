@@ -1,35 +1,50 @@
 # SSECast
 
-SSECast is a source-resolved framework for multi-horizon forecasting of slow-slip evolution from daily geodetic source fields. It advances two consecutive slip-potency fields to a sequence of future source fields and supports region-specific training for subduction margins.
+SSECast is a source-resolved framework for multi-horizon forecasting of slow-slip evolution from daily geodetic source fields. It advances two consecutive slip-potency fields to future source fields and supports independent training for individual subduction margins.
 
-This repository is a clean, source-only release prepared from the operational research code. It contains the model, direct multi-horizon training and testing entry points, regional configuration templates and reproducibility notes. Raw GNSS observations, source inversions, tremor catalogues, model checkpoints and forecast products are intentionally excluded.
+This is a source-only research release. It includes the model, direct multi-horizon training and testing scripts, and configuration templates. Raw GNSS observations, source inversions, tremor catalogues, trained checkpoints and forecast products are not distributed.
 
 ## Repository layout
 
 ```text
 SSECast/
-├── configs/              # Regional configuration templates
-├── data/                 # Local-data specification only; contents are ignored by Git
-├── docs/                 # Data and reproducibility notes
-├── outputs/              # Local run products; ignored by Git
-├── scripts/              # Training and independent-testing commands
-└── src/ssecast/          # Model, dataset, forecast objective and metrics
+├── configs/              # Regional training configurations
+├── data/                 # Local input data, ignored by Git
+├── outputs/              # Local checkpoints and evaluation products, ignored by Git
+├── scripts/              # Training and held-out testing entry points
+└── src/ssecast/          # Model, dataset, loss and metrics
 ```
 
 ## Installation
 
-Create a Python environment with Python 3.10 or later, install PyTorch appropriate for the target CPU or GPU, and then install the remaining dependencies:
+Use Python 3.10 or later. Install a PyTorch build appropriate for the target CPU or GPU, then install the remaining requirements:
 
 ```bash
 pip install -r requirements.txt
 pip install -e .
 ```
 
-## Data preparation
+## Data layout
 
-Place processed regional files under `data/` following [data/README.md](data/README.md). The example configurations retain the regional preprocessing assumptions but point only to local, untracked paths.
+The regional configuration `configs/cascadia.yaml` expects the following local, untracked files for Cascadia. The other regions use the same layout.
 
-## Direct multi-horizon training
+```text
+data/
+  cascadia/
+    slip_potency_smooth/
+      train/{slip,slip_strike,slip_dip}
+      eval/{slip,slip_strike,slip_dip}
+      test/{slip,slip_strike,slip_dip}
+    norm_value/{mean.npy,std.npy}
+```
+
+Each source-field file is a whitespace-delimited daily array with shape `time × fault element`. The train, evaluation and test periods must be chronological and non-overlapping. Compute the normalization arrays from the training split only.
+
+## Training
+
+Each configuration has one selectable entry: `backbone`. It describes the first, from-scratch SSECast training stage; there is no separate fine-tuning configuration.
+
+Train a 14-day Cascadia model with:
 
 ```bash
 python scripts/train.py \
@@ -41,9 +56,23 @@ python scripts/train.py \
   --amp
 ```
 
-Set `--horizon 30` and use a distinct `--run-name` to train a 30-day model. Training artefacts are written below `outputs/`.
+Train a 30-day model with a separate run name and horizon:
 
-## Independent testing
+```bash
+python scripts/train.py \
+  --config configs/cascadia.yaml \
+  --config-name backbone \
+  --run-name ssecast-30 \
+  --horizon 30 \
+  --device cuda \
+  --amp
+```
+
+SSECast-14 and SSECast-30 are independently trained direct multi-horizon models. The 30-day model is not obtained by recursively extending the 14-day model. Training uses the evaluation split to select `best_model.ckpt` and writes checkpoints, TensorBoard logs, `train_history.json` and `train_args.json` below `outputs/<region>/<run-name>/`.
+
+## Held-out testing
+
+Evaluate the selected model once on the untouched test split:
 
 ```bash
 python scripts/test.py \
@@ -55,16 +84,12 @@ python scripts/test.py \
   --device cuda
 ```
 
-Testing writes ssecast_metrics.csv and ssecast_metrics.png to the run directory. These report NRMSE and ACC for slip potency, slip potency along strike and slip potency along dip at each forecast lead time. Reference forecasts are not included.
+Testing never changes model weights. It writes `ssecast_metrics.csv`, `ssecast_metrics.png` and `test_args.json` to the run directory. The metrics report normalized root-mean-square error and anomaly correlation coefficient for slip potency, slip potency along strike and slip potency along dip at every forecast lead time. Test examples are not used for normalization, model selection or optimization.
 
-## Reproducible workflow
+## Forecast objective
 
-Prepare the regional files using data/README.md, train with scripts/train.py, select best_model.ckpt using the eval split, and run scripts/test.py once on the held-out test split. See docs/workflow.md for the complete sequence and expected outputs.
+The model receives two consecutive normalized source fields. Each field contains cumulative slip potency, potency along strike and potency along dip. It directly forecasts a specified sequence of future source fields. The training objective combines normalized cumulative-state error with normalized daily-increment error. Fault elements in the upper quartile of absolute observed slip-potency increment receive additional spatial weight, and the mixture-of-experts routing loss is regularized by its configurable coefficient.
 
-## Scope
+## Scope and license
 
-The current release provides research code and configuration templates. Data availability, scientific interpretation and citation information will be added with the associated manuscript and archival release.
-
-## License
-
-No license has yet been assigned. Please contact the repository owner before reusing the code.
+This release provides research code and configuration templates. Data availability, scientific interpretation and citation information will accompany the manuscript and archival release. No license has yet been assigned; contact the repository owner before reusing the code.
