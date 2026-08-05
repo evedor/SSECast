@@ -2,7 +2,7 @@
 
 SSECast is a source-resolved framework for multi-horizon forecasting of slow-slip evolution from daily geodetic source fields. It advances two consecutive slip-potency fields to future source fields and supports independent training for individual subduction margins.
 
-This is a source-only research release. It includes the model, direct multi-horizon training and testing scripts, and configuration templates. Raw GNSS observations, source inversions, tremor catalogues, trained checkpoints and forecast products are not distributed.
+It includes the model, direct multi-horizon training and testing scripts, and configuration templates. Raw GNSS observations, source inversions, tremor catalogues, trained checkpoints and forecast products are not concluded.
 
 ## Repository layout
 
@@ -10,7 +10,7 @@ This is a source-only research release. It includes the model, direct multi-hori
 SSECast/
 ├── configs/              # Regional training configurations
 ├── data/                 # Local input data, ignored by Git
-├── outputs/              # Local checkpoints and evaluation products, ignored by Git
+├── outputs/              # Local checkpoints and evaluation products
 ├── scripts/              # Training and held-out testing entry points
 └── src/ssecast/          # Model, dataset, loss and metrics
 ```
@@ -26,7 +26,7 @@ pip install -e .
 
 ## Data layout
 
-The regional configuration `configs/cascadia.yaml` expects the following local, untracked files for Cascadia. The other regions use the same layout.
+The regional configuration `configs/cascadia.yaml` expects the following files for Cascadia. The other regions use the same layout.
 
 ```text
 data/
@@ -39,6 +39,8 @@ data/
 ```
 
 Each source-field file is a whitespace-delimited daily array with shape `time × fault element`. The train, evaluation and test periods must be chronological and non-overlapping. Compute the normalization arrays from the training split only.
+
+Data should be prepared using the preprocessing code available from https://github.com/Geolandi/sse_postprocessing (Julia) or https://github.com/Geolandi/sse_postprocessing_matlab (MATLAB). Note that the MATLAB implementation requires a separate implementation of the filtering step. The corresponding data should then be downloaded from https://near-real-time-sse.esc.cam.ac.uk/cascadia/, processed with the selected workflow, and organized into the data layout described above.
 
 ## Training
 
@@ -70,7 +72,7 @@ python scripts/train.py \
 
 SSECast-14 and SSECast-30 are independently trained direct multi-horizon models. The 30-day model is not obtained by recursively extending the 14-day model. Training uses the evaluation split to select `best_model.ckpt` and writes checkpoints, TensorBoard logs, `train_history.json` and `train_args.json` below `outputs/<region>/<run-name>/`.
 
-## Held-out testing
+## testing
 
 Evaluate the selected model once on the untouched test split:
 
@@ -86,9 +88,11 @@ python scripts/test.py \
 
 Testing never changes model weights. It writes `ssecast_metrics.csv`, `ssecast_metrics.png` and `test_args.json` to the run directory. The metrics report normalized root-mean-square error and anomaly correlation coefficient for slip potency, slip potency along strike and slip potency along dip at every forecast lead time. Test examples are not used for normalization, model selection or optimization.
 
-## Forecast objective
+## Daily forecast results
+The daily forecast results for the Cascadia region can be viewed from the website below
+https://ssecast-cascadia.github.io/
 
-The model receives two consecutive normalized source fields. Each field contains cumulative slip potency, potency along strike and potency along dip. It directly forecasts a specified sequence of future source fields. The training objective combines normalized cumulative-state error with normalized daily-increment error. Fault elements in the upper quartile of absolute observed slip-potency increment receive additional spatial weight, and the mixture-of-experts routing loss is regularized by its configurable coefficient.
+
 
 ## Scope and license
 
