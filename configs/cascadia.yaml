@@ -1,0 +1,72 @@
+### base config ###
+full_field: &FULL_FIELD
+  run_num: "00"
+  exper_path: "outputs/cascadia"
+  data_path: "data/cascadia/slip_potency_smooth"
+  fault_path: "data/cascadia/fault"
+  tremor_path: "data/cascadia/tremor"
+  llh_path: "data/cascadia/fault/llh"
+  mean_path: "data/cascadia/norm_value/mean.npy"
+  std_path: "data/cascadia/norm_value/std.npy"
+  device: "cuda"
+  use_tremor: !!bool False
+  early_stopping_patience: 40
+  batch_size: 48
+  dt: 1
+  lr:  0.0005
+  max_epochs: 100
+  img_size: 3339
+  patch_size: 3
+  fea_len: 3339
+  time_chans: 2
+  data_chans: 3
+  out_chans: 3
+
+# 训练基础模型
+backbone: &backbone
+  <<: *FULL_FIELD
+  run_num: "00"
+  two_step_training: !!bool False
+  checkpoint_path: "outputs/cascadia/00/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "outputs/cascadia/00/training_checkpoints/best_model.ckpt"
+  writer: "outputs/cascadia/00/tensorboard"
+
+# 微调迭代的基础模型
+finetune: &finetune
+  <<: *backbone
+  run_num: "11"
+  lr:  0.0008
+  max_epochs: 100
+  batch_size: 16
+  pretrained: !!bool True
+  two_step_training: !!bool True
+  pretrained_ckpt_path: "outputs/cascadia/00/training_checkpoints/backbone.ckpt"
+  checkpoint_path: "outputs/cascadia/11/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "outputs/cascadia/11/training_checkpoints/best_model.ckpt"
+  writer: "outputs/cascadia/11/tensorboard"
+
+# 微调有tremor数据的模型，直接使用迭代微调的方式
+tremor_finetune:
+  <<: *FULL_FIELD
+  run_num: "22"
+  data_chans: 4
+  out_chans: 4
+  lr:  0.0008
+  max_epochs: 100
+  batch_size: 24
+  two_step_training: !!bool True
+  use_tremor: !!bool True
+  pretrained_ckpt_path:  "outputs/cascadia/11/training_checkpoints/backbone.ckpt"
+  checkpoint_path: "outputs/cascadia/22/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "outputs/cascadia/22/training_checkpoints/best_model.ckpt"
+  writer: "outputs/cascadia/22/tensorboard"
+
+# # 训练基础模型
+# backbone_fivedays:
+#   <<: *FULL_FIELD
+#   run_num: "33"
+#   dt: 4
+#   two_step_training: !!bool False
+#   checkpoint_path: "outputs/cascadia/33/training_checkpoints/backbone.ckpt"
+#   best_checkpoint_path: "outputs/cascadia/33/training_checkpoints/best_model.ckpt"
+#   writer: "outputs/cascadia/33/tensorboard"
