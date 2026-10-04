@@ -9,7 +9,7 @@ It includes the model, direct multi-horizon training and testing scripts, and co
 ```text
 SSECast/
 ├── configs/              # Regional training configurations
-├── data/                 # Local input data, ignored by Git
+├── data/                 # Local input data
 ├── outputs/              # Local checkpoints and evaluation products
 ├── scripts/              # Training and held-out testing entry points
 └── src/ssecast/          # Model, dataset, loss and metrics
@@ -41,6 +41,8 @@ data/
 Each source-field file is a whitespace-delimited daily array with shape `time × fault element`. The train, evaluation and test periods must be chronological and non-overlapping. Compute the normalization arrays from the training split only.
 
 Data should be prepared using the preprocessing code available from https://github.com/Geolandi/sse_postprocessing (Julia) or https://github.com/Geolandi/sse_postprocessing_matlab (MATLAB). Note that the MATLAB implementation requires a separate implementation of the filtering step. The corresponding data should then be downloaded from https://near-real-time-sse.esc.cam.ac.uk/cascadia/, processed with the selected workflow, and organized into the data layout described above.
+
+The data in the repository were processed through September 2025.
 
 ## Training
 
