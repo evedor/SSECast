@@ -4,23 +4,32 @@ Source-resolved forecasting of slow-slip evolution from daily geodetic slip-pote
 fields. The model advances two consecutive slip-potency fields to a future source
 field with an encoder–decoder backbone whose four transformer blocks each contain a
 mixture-of-experts (MoE) layer (`expert_num = 4`, `topk = 2`, plus one shared
-expert). A single set of shared weights is trained jointly on four subduction
-zones — Cascadia, Alaska, Nankai and New Zealand — with region conditioning
-supplied by a learnable region-identity embedding, a residual adapter and a
-region-specific output head.
+expert). A single set of shared weights is trained jointly on four subduction zones
+— Cascadia, Alaska, Nankai and New Zealand — with region conditioning supplied by a
+learnable region-identity embedding, a residual adapter and a region-specific output
+head.
 
 ```text
 SSECast/
-├── train.py                  # single-GPU / CPU training entry point
-├── train_ddp.py              # multi-GPU DDP training (reuses Config from train.py)
-├── finetune_per_region.py    # per-region fine-tuning of adapter+head, merged into one checkpoint
-├── FINETUNE_PER_REGION.md    # notes on the fine-tuning workflow
-├── config/                   # YAML configurations
-├── networks/                 # model definition (SSEPREModel, MoE blocks)
-├── utils/                    # data loading, mesh tokenisation, losses, metrics
-├── data/                     # regional input data (large files, tracked separately)
+├── train.py                     # single-process training (same config; 1 GPU is enough for testing)
+├── train_ddp.py                 # multi-GPU DDP training — the reference entry point
+├── finetune_per_region.py       # per-region fine-tuning of adapter+head, merged into one checkpoint
+├── FINETUNE_PER_REGION.md       # notes on the fine-tuning workflow
+├── config/
+│   ├── multiregion_l2_ddp.yaml          # training  (reference configuration)
+│   ├── multiregion_l2_ddp_noembed.yaml  # ablation: no region one-hot embedding
+│   └── finetune_per_region.yaml         # fine-tuning hyper-parameters
+├── networks/                    # model definition (SSEPREModel, MoE blocks)
+├── utils/                       # data loading, mesh tokenisation, losses, metrics
+├── data/                        # regional input data
 └── requirements.txt
 ```
+
+Only one training configuration is maintained: `multiregion_l2_ddp.yaml` — L2 loss,
+`rollout_horizon = 2` (two-step roll-out, `n_blocks = 2`, `block_len = 1`), no Δ
+(persistence-anchored) parameterisation (`predict_delta: False`), 4-GPU DDP. The
+accompanying ablation switches the region one-hot embedding off and is otherwise
+identical.
 
 ## Installation
 
@@ -32,8 +41,7 @@ pip install -r requirements.txt
 
 ## Data layout
 
-Each region needs the following files; `config/multiregion*.yaml` point at
-`data/<region>/...`.
+Each region needs the following files; the configurations point at `data/<region>/...`.
 
 ```text
 data/<region>/
@@ -46,58 +54,53 @@ data/<region>/
 ```
 
 `slip` files are whitespace-delimited daily arrays with shape `time × fault element`.
-The train, evaluation and test periods must be chronological and non-overlapping.
-To use a different location, edit `region_configs.<region>.{data_path, fault_path,
-llh_path, mean_path, std_path, tremor_path}` in the YAML.
+Train, evaluation and test periods must be chronological and non-overlapping. To use a
+different location, edit `region_configs.<region>.{data_path, fault_path, llh_path,
+mean_path, std_path, tremor_path}` in the configuration.
 
 ## Training
 
-Multi-region pre-training:
+Reference training run (4 GPUs):
 
 ```bash
-python train.py --yaml_config ./config/multiregion_l2.yaml --config multiregion
+torchrun --nproc_per_node=4 --standalone train_ddp.py \
+  --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
 ```
 
-Without the region one-hot embedding (ablation; 1,024 fewer parameters —
-67,488,678 instead of 67,489,702):
+The same configuration can be used by the single-process trainer, e.g. for a smoke
+test on one GPU:
 
 ```bash
-python train.py --yaml_config ./config/multiregion_l2_noembed.yaml --config multiregion
+python train.py --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
 ```
 
-Multi-GPU with DDP:
+Ablation without the region one-hot embedding (1,024 fewer parameters — 67,488,678
+instead of 67,489,702):
 
 ```bash
-torchrun --nproc_per_node=4 train_ddp.py --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
+torchrun --nproc_per_node=4 --standalone train_ddp.py \
+  --yaml_config ./config/multiregion_l2_ddp_noembed.yaml --config multiregion
 ```
 
-Per-region fine-tuning of the region adapter and output head, merged back into a
-single checkpoint (the shared trunk stays bit-identical):
+Checkpoints and TensorBoard logs are written to the `exper_path` of the configuration
+(`Results/multiregion_l2_ddp/00/...` by default) and are not tracked by Git.
+
+## Fine-tuning
+
+Per-region fine-tuning of the region adapter and output head on top of a trained
+backbone, merged back into a single checkpoint (the shared trunk stays
+bit-identical):
 
 ```bash
 python finetune_per_region.py \
-  --base_yaml ./config/multiregion_l2.yaml --base_config multiregion \
   --ft_config l2 --tag all_l2 \
-  --ft_regions cascadia,alaska,nankai,newzealand \
-  --pretrained_ckpt_path ./Results/multiregion_l2/00/training_checkpoints/best_model.ckpt \
-  --out_dir  ./Results/multiregion_l2/finetune_per_region \
-  --epochs 20 --patience 5
+  --ft_regions cascadia,alaska,nankai,newzealand
 ```
 
-Checkpoints and TensorBoard logs are written under the `exper_path` of each
-configuration and are not tracked by Git.
-
-## Configurations
-
-| file | purpose |
-| --- | --- |
-| `multiregion.yaml` | multi-region, L1 loss |
-| `multiregion_l2.yaml` | multi-region, L2 loss (default) |
-| `multiregion_l2_ddp.yaml` | DDP variant of the above |
-| `multiregion_noembed.yaml`, `multiregion_l2_noembed.yaml` | `region_embed: False` ablations |
-| `multiregion_r6_lr*.yaml` | learning-rate sweep |
-| `cascadia.yaml`, `alaska.yaml`, `nankai.yaml`, `newzealand.yaml` | single-region training |
-| `finetune_per_region.yaml`, `_ddp_smoke.yaml` | fine-tuning / DDP smoke test |
+`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml` (architecture must match
+the pretrained checkpoint), and `config/finetune_per_region.yaml` supplies
+`pretrained_ckpt_path`, `out_dir`, learning rate, epochs and patience. All of these
+can be overridden on the command line.
 
 ## Model notes
 
@@ -105,18 +108,17 @@ configuration and are not tracked by Git.
 * The irregular triangular mesh is converted to a 1-D token sequence by pairing
   triangles that share their longest edge (`patch_size = 2`), after which the token
   order is chosen to maximise spatial coherence: the native element order is kept
-  when it is already coherent (Cascadia, coherence 0.998) and a geometrically
-  sorted ("banded") order is used otherwise (Alaska / Nankai / New Zealand,
-  0.990–0.995). See `utils/fault_tokens.py`.
+  when it is already coherent (Cascadia, coherence 0.998) and a geometrically sorted
+  ("banded") order is used otherwise (Alaska / Nankai / New Zealand, 0.990–0.995).
+  See `utils/fault_tokens.py`.
 * Blocks 1 and 4 operate on the full token grid; blocks 2 and 3 operate on the
-  downsampled half-length sequence, so only blocks 1 and 4 map one-to-one onto
-  fault elements.
-* `pos_embed_mode: none` — positional information comes from rotary position
-  encoding on the token index.
-* Region conditioning enters at three places: a learnable region-identity vector
-  added to the patch embeddings, a zero-initialised residual adapter after the last
-  block, and a region-specific output head. The `*_noembed` configurations disable
-  the first.
+  downsampled half-length sequence, so only blocks 1 and 4 map one-to-one onto fault
+  elements.
+* `pos_embed_mode: none` — positional information comes from rotary position encoding
+  on the token index.
+* Region conditioning enters at three places: a learnable region-identity vector added
+  to the patch embeddings, a zero-initialised residual adapter after the last block,
+  and a region-specific output head. The `*_noembed` configuration disables the first.
 
 ## Scope
 

@@ -60,7 +60,7 @@ multiregion: &multiregion
   out_chans: 3
   block_len: 1
   n_blocks: 2
-  rollout_horizon: 6
+  rollout_horizon: 2
   target_mode: "next_day"
   target_window: 5
   predict_delta: !!bool False     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）

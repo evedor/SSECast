@@ -796,7 +796,7 @@ if __name__ == '__main__':
     seed_everything(111)
 
     parser = argparse.ArgumentParser()
-    parser.add_argument('--yaml_config', default='./config/cascadia.yaml', type=str)
+    parser.add_argument('--yaml_config', default='./config/multiregion_l2_ddp.yaml', type=str)
     parser.add_argument("--config", default='backbone', type=str)  # 配置的部分
     args = parser.parse_args()
 

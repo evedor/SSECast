@@ -19,7 +19,7 @@
 
 _base: &base
   # ---- 预训练权重（微调起点）：主干必须来自多区域模型 ----
-  pretrained_ckpt_path: "./Results/multiregion/00/training_checkpoints/best_model.ckpt"
+  pretrained_ckpt_path: "./Results/multiregion_l2_ddp/00/training_checkpoints/best_model.ckpt"
 
   # ---- 要微调哪些区域（顺序即执行顺序）；留空则用 yaml 的 regions ----
   ft_regions: ["cascadia", "alaska", "nankai", "newzealand"]
@@ -33,8 +33,8 @@ _base: &base
   early_stopping_patience: 8
 
   # ---- 产物 ----
-  out_dir: "./Results/multiregion/finetune_per_region"
-  tb_dir: "./Results/multiregion/finetune_per_region/tensorboard"
+  out_dir: "./Results/multiregion_l2_ddp/finetune_per_region"
+  tb_dir: "./Results/multiregion_l2_ddp/finetune_per_region/tensorboard"
 
 # L2 口径（推荐先跑这一个）
 l2:

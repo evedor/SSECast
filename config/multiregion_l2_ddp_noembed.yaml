@@ -1,3 +1,6 @@
+### 4 卡 DDP + 无区域 one-hot 的消融配置（除 region_embed 外与 multiregion_l2_ddp.yaml 相同）：与 multiregion_l2.yaml 相同（loss=l2），
+# 只是把产物落到 ./Results/multiregion_l2_ddp/，便于和单卡 l2 实验区分。
+# 用法: torchrun --nproc_per_node=4 --standalone train_ddp.py --yaml_config ./config/multiregion_l2_ddp.yaml
 ### L2 版多区域预训练（与 multiregion.yaml 的唯一区别：loss_mode -> l2）
 #
 # 目的：上一版用 l1（中位数回归）训练，实测日变化幅度只复现真值的 32%，
@@ -17,7 +20,7 @@
 #   数据归一化(mean/std)、loss 深度权重；region_embed 表达"哪个区域"。
 multiregion: &multiregion
   run_num: "00"
-  exper_path: "./Results/_ddp_smoke"
+  exper_path: "./Results/multiregion_l2_ddp_noembed"
 
   # ---- 区域清单：训练 / 评估的顺序；只想跑部分区域就改这一行（区域设置不用动）----
   regions: ["cascadia", "alaska", "nankai", "newzealand"]
@@ -34,7 +37,7 @@ multiregion: &multiregion
   #   pos_embed_mode: grid(共享二维网格) / table(每 token 一个向量) / none(不用显式位置编码)
   pos_embed_mode: "none"
   # region_embed 承担"我是哪个区域"：onehot = 每区一个独立基向量 × region_embed_scale
-  region_embed: !!bool True
+  region_embed: !!bool False
   region_embed_init: "onehot"     # onehot（推荐）/ normal / zeros（原行为）
   region_embed_scale: 0.02
 
@@ -43,9 +46,9 @@ multiregion: &multiregion
   region_adapter_ratio: 4         # Adapter 瓶颈 = hidden/ratio
   region_head: !!bool True        # 最终投影按区域分开（head1/head2 仍共享）
   region_balanced: !!bool True    # 每个 update 各区域各取 1 个 batch，梯度累积后一次 step
-  stage1_epochs: 1               # 前 20 个 epoch 联合训练；之后冻结共享主干只训区域模块
-  stage2_epochs: 1               # 阶段二独立 epoch 预算（0 = 沿用 max_epochs）
-  stage2_patience: 1              # 阶段二独立 patience（0 = 沿用 early_stopping_patience）
+  stage1_epochs: 20               # 前 20 个 epoch 联合训练；之后冻结共享主干只训区域模块
+  stage2_epochs: 15               # 阶段二独立 epoch 预算（0 = 沿用 max_epochs）
+  stage2_patience: 5              # 阶段二独立 patience（0 = 沿用 early_stopping_patience）
   stage2_train: "heads+adapters"  # 阶段二训哪些区域模块：heads+adapters / heads（只训 head = 线性探针）
   stage2_lr: 0.0005               # 阶段二学习率（0 = 沿用 lr）
   stage2_per_region_best: !!bool True   # 每区按自己的 eval 选 best、各自早停，存 region_<r>_best.ckpt
@@ -60,8 +63,8 @@ multiregion: &multiregion
   rollout_horizon: 2
   target_mode: "next_day"
   target_window: 5
-  predict_delta: !!bool True     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）
-  delta_weight: 1                # Δ 项权重（1 = 精度项与 Δ 项各占一半；原来 2 使 Δ 占 85%）
+  predict_delta: !!bool False     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）
+  delta_weight: 0                # Δ 项权重（1 = 精度项与 Δ 项各占一半；原来 2 使 Δ 占 85%）
   loss_mode: "l2"
   mask_path: "data/high_value_masks.npz"
   mask_boost: 1.0
@@ -69,11 +72,13 @@ multiregion: &multiregion
   # ---- 训练 ----
   device: "cuda"
   dt: 1
-  lr: 0.0007
-  batch_size: 4                  # 每区每步 48 条；4 区累积 → 有效 batch 192
+  lr: 0.0005
+  batch_size: 48                  # 每区每步 48 条；4 区累积 → 有效 batch 192
   max_epochs: 100
-  early_stopping_patience: 2
+  early_stopping_patience: 40
   use_tremor: !!bool False
+  # 4 卡任务里 /dev/shm 默认很小，DataLoader worker 会报 No space left on device；
+  # 本工程 dataset 只做 np.stack，主进程读足够快，直接关掉 worker。
   num_workers: 0
   two_step_training: !!bool True
 
@@ -114,6 +119,6 @@ multiregion: &multiregion
       tremor_path: "data/newzealand/tremor"
       mask_key:    "newzealand"          # data/high_value_masks.npz 里对应的 key
 
-  checkpoint_path: "./Results/_ddp_smoke/00/training_checkpoints/backbone.ckpt"
-  best_checkpoint_path: "./Results/_ddp_smoke/00/training_checkpoints/best_model.ckpt"
-  writer: "./Results/_ddp_smoke/00/tensorboard"
+  checkpoint_path: "./Results/multiregion_l2_ddp/00/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "./Results/multiregion_l2_ddp/00/training_checkpoints/best_model.ckpt"
+  writer: "./Results/multiregion_l2_ddp/00/tensorboard"
