@@ -20,7 +20,7 @@ SSECast/
 │   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
-├── data/                        # regional input data
+├── data/                        # regional input data (not distributed; see data/README.md)
 └── requirements.txt
 ```
 
@@ -39,9 +39,14 @@ Python 3.10+ and a PyTorch build matching the target CPU or GPU.
 pip install -r requirements.txt
 ```
 
-## Data layout
+## Data
 
-Each region needs the following files; the configurations point at `data/<region>/...`.
+The slip-potency fields and the normalisation statistics are **not distributed** with
+this repository; see [`data/README.md`](data/README.md) for the expected layout and for
+the public sources and preprocessing code from which the inputs can be reconstructed.
+The configurations point at `data/<region>/...` by default.
+
+Each region needs the following files:
 
 ```text
 data/<region>/
@@ -117,6 +122,6 @@ can be overridden on the command line.
 ## Scope
 
 This release contains the training code for the multi-region MoE backbone. Raw GNSS
-observations, source inversions, tremor catalogues, trained checkpoints and forecast
-products are not included. No license has been assigned yet; contact the repository
+observations, source inversions (slip-potency fields), normalisation statistics, tremor
+catalogues, trained checkpoints and forecast products are not included. No license has been assigned yet; contact the repository
 owner before reusing the code.
