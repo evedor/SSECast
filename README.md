@@ -23,12 +23,9 @@ SSECast/
 └── requirements.txt
 ```
 
-Only one training configuration is maintained: `multiregion_l2_ddp.yaml` — L2 loss,
-`rollout_horizon = 2` (two-step roll-out, `n_blocks = 2`, `block_len = 1`), no Δ
-(persistence-anchored) parameterisation (`predict_delta: False`), 4-GPU DDP. The
-region-identity embedding is kept but initialised to zero (`region_embed_init:
-"zeros"`), so the vector starts from no region signal and is learned during stage 1
-rather than being anchored to a scaled one-hot basis.
+`multiregion_l2_ddp.yaml` — L2 loss, `rollout_horizon = 2` (two-step roll-out,
+`n_blocks = 2`, `block_len = 1`), no Δ (persistence-anchored) parameterisation
+(`predict_delta: False`), 4-GPU DDP.
 
 ## Installation
 
