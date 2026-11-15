@@ -1,0 +1,47 @@
+### 单区域微调配置（在多区域预训练之后，逐个区域微调各自的 adapter / head）
+#
+# 用法:
+#   python finetune_per_region.py --ft_config l2 --tag cascadia_l2 --ft_regions cascadia
+#   python finetune_per_region.py --ft_config l2 --tag all_l2                 # 四区依次微调后合并成一个 ckpt
+#
+# 语义:
+#   * 架构/布局完全沿用 ./config/multiregion.yaml 的 multiregion 节（**不要在下面改 regions /
+#     patch_size / token_* / pos_embed_mode**，否则与预训练 ckpt 对不上，脚本会直接报错退出）；
+#   * 每个区域微调时只放开 region_adapters.<r> 与 region_heads.<r>，共享主干、region_embed、
+#     head1/head2/head_out 以及**其它三个区域的头**全部冻结；
+#   * 各区独立用自己 eval 划分选最优 + 早停，最后把四个区域的最优模块合并回主干，
+#     产出**一个** ckpt（<out_dir>/<tag>.ckpt），推理时按 region 路由即可。
+#
+# loss_mode 提示（2026-11 诊断结论）:
+#   l1 = 与预训练一致（中位数回归，抗重尾），但会把日变化幅度压掉（实测只复现 32%），
+#        用 L2 的 weight_rmse/weight_acc 画图时短 lead 会明显吃亏；
+#   l2 = 只微调头/adapter 把幅度拉回来，正对上面的病根；预训练仍用 l1 保留鲁棒性。
+
+_base: &base
+  # ---- 预训练权重（微调起点）：主干必须来自多区域模型 ----
+  pretrained_ckpt_path: "./Results/multiregion/00/training_checkpoints/best_model.ckpt"
+
+  # ---- 要微调哪些区域（顺序即执行顺序）；留空则用 yaml 的 regions ----
+  ft_regions: ["cascadia", "alaska", "nankai", "newzealand"]
+
+  # ---- 微调范围：heads + adapters（推荐）/ 只 heads（等效线性探针）----
+  keep_adapters: !!bool True
+
+  # ---- 优化 ----
+  lr: 0.0005
+  max_epochs: 40
+  early_stopping_patience: 8
+
+  # ---- 产物 ----
+  out_dir: "./Results/multiregion/finetune_per_region"
+  tb_dir: "./Results/multiregion/finetune_per_region/tensorboard"
+
+# L2 口径（推荐先跑这一个）
+l2:
+  <<: *base
+  loss_mode: "l2"
+
+# L1 口径（与预训练一致，作为 A/B 对照）
+l1:
+  <<: *base
+  loss_mode: "l1"
