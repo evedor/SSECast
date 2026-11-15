@@ -36,9 +36,9 @@ multiregion: &multiregion
   # ---- 位置编码：已删除 grid PE，只用 RoPE（token 序号）+ region embedding ----
   #   pos_embed_mode: grid(共享二维网格) / table(每 token 一个向量) / none(不用显式位置编码)
   pos_embed_mode: "none"
-  # region_embed 承担"我是哪个区域"：onehot = 每区一个独立基向量 × region_embed_scale
+  # region_embed 承担"我是哪个区域"：zeros = 从零初始化、靠梯度学出来（当前设置）
   region_embed: !!bool True
-  region_embed_init: "onehot"     # onehot（推荐）/ normal / zeros（原行为）
+  region_embed_init: "zeros"     # onehot（推荐）/ normal / zeros（原行为）
   region_embed_scale: 0.02
 
   # ---- 减少区域干扰：区域专属 Adapter / Head + 区域均衡梯度累积 + 两阶段训练 ----

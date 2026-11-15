@@ -16,9 +16,8 @@ SSECast/
 ├── finetune_per_region.py       # per-region fine-tuning of adapter+head, merged into one checkpoint
 ├── FINETUNE_PER_REGION.md       # notes on the fine-tuning workflow
 ├── config/
-│   ├── multiregion_l2_ddp.yaml          # training  (reference configuration)
-│   ├── multiregion_l2_ddp_noembed.yaml  # ablation: no region one-hot embedding
-│   └── finetune_per_region.yaml         # fine-tuning hyper-parameters
+│   ├── multiregion_l2_ddp.yaml  # training (reference configuration)
+│   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
 ├── data/                        # regional input data
@@ -28,8 +27,9 @@ SSECast/
 Only one training configuration is maintained: `multiregion_l2_ddp.yaml` — L2 loss,
 `rollout_horizon = 2` (two-step roll-out, `n_blocks = 2`, `block_len = 1`), no Δ
 (persistence-anchored) parameterisation (`predict_delta: False`), 4-GPU DDP. The
-accompanying ablation switches the region one-hot embedding off and is otherwise
-identical.
+region-identity embedding is kept but initialised to zero (`region_embed_init:
+"zeros"`), so the vector starts from no region signal and is learned during stage 1
+rather than being anchored to a scaled one-hot basis.
 
 ## Installation
 
@@ -74,14 +74,6 @@ test on one GPU:
 python train.py --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
 ```
 
-Ablation without the region one-hot embedding (1,024 fewer parameters — 67,488,678
-instead of 67,489,702):
-
-```bash
-torchrun --nproc_per_node=4 --standalone train_ddp.py \
-  --yaml_config ./config/multiregion_l2_ddp_noembed.yaml --config multiregion
-```
-
 Checkpoints and TensorBoard logs are written to the `exper_path` of the configuration
 (`Results/multiregion_l2_ddp/00/...` by default) and are not tracked by Git.
 
@@ -118,7 +110,9 @@ can be overridden on the command line.
   on the token index.
 * Region conditioning enters at three places: a learnable region-identity vector added
   to the patch embeddings, a zero-initialised residual adapter after the last block,
-  and a region-specific output head. The `*_noembed` configuration disables the first.
+  and a region-specific output head. With `region_embed_init: "zeros"` the first of
+  these starts at zero and is learned; setting `region_embed: False` removes it
+  entirely (1,024 fewer parameters — 67,488,678 instead of 67,489,702).
 
 ## Scope
 
