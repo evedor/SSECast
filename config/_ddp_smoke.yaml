@@ -63,7 +63,7 @@ multiregion: &multiregion
   predict_delta: !!bool True     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）
   delta_weight: 1                # Δ 项权重（1 = 精度项与 Δ 项各占一半；原来 2 使 Δ 占 85%）
   loss_mode: "l2"
-  mask_path: "../data/high_value_masks.npz"
+  mask_path: "data/high_value_masks.npz"
   mask_boost: 1.0
 
   # ---- 训练 ----
@@ -82,37 +82,37 @@ multiregion: &multiregion
   #   data_path 指向“已归一化前的原始 slip 数据”目录（内部再分 train/eval/test）。
   region_configs:
     cascadia:
-      data_path:   "../data/cascadia/slip_potency_smooth"
-      fault_path:  "../data/cascadia/fault"
-      llh_path:    "../data/cascadia/fault/llh"
-      mean_path:   "../data/cascadia/norm_value/mean.npy"
-      std_path:    "../data/cascadia/norm_value/std.npy"
-      tremor_path: "../data/cascadia/tremor"
-      mask_key:    "cascadia"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/cascadia/slip_potency_smooth"
+      fault_path:  "data/cascadia/fault"
+      llh_path:    "data/cascadia/fault/llh"
+      mean_path:   "data/cascadia/norm_value/mean.npy"
+      std_path:    "data/cascadia/norm_value/std.npy"
+      tremor_path: "data/cascadia/tremor"
+      mask_key:    "cascadia"          # data/high_value_masks.npz 里对应的 key
     alaska:
-      data_path:   "../data/alaska/slip_potency_smooth"
-      fault_path:  "../data/alaska/fault"
-      llh_path:    "../data/alaska/fault/llh"
-      mean_path:   "../data/alaska/norm_value/mean.npy"
-      std_path:    "../data/alaska/norm_value/std.npy"
-      tremor_path: "../data/alaska/tremor"
-      mask_key:    "alaska"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/alaska/slip_potency_smooth"
+      fault_path:  "data/alaska/fault"
+      llh_path:    "data/alaska/fault/llh"
+      mean_path:   "data/alaska/norm_value/mean.npy"
+      std_path:    "data/alaska/norm_value/std.npy"
+      tremor_path: "data/alaska/tremor"
+      mask_key:    "alaska"          # data/high_value_masks.npz 里对应的 key
     nankai:
-      data_path:   "../data/nankai/slip_potency_smooth"
-      fault_path:  "../data/nankai/fault"
-      llh_path:    "../data/nankai/fault/llh"
-      mean_path:   "../data/nankai/norm_value/mean.npy"
-      std_path:    "../data/nankai/norm_value/std.npy"
-      tremor_path: "../data/nankai/tremor"
-      mask_key:    "nankai"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/nankai/slip_potency_smooth"
+      fault_path:  "data/nankai/fault"
+      llh_path:    "data/nankai/fault/llh"
+      mean_path:   "data/nankai/norm_value/mean.npy"
+      std_path:    "data/nankai/norm_value/std.npy"
+      tremor_path: "data/nankai/tremor"
+      mask_key:    "nankai"          # data/high_value_masks.npz 里对应的 key
     newzealand:
-      data_path:   "../data/newzealand/slip_potency_smooth"
-      fault_path:  "../data/newzealand/fault"
-      llh_path:    "../data/newzealand/fault/llh"
-      mean_path:   "../data/newzealand/norm_value/mean.npy"
-      std_path:    "../data/newzealand/norm_value/std.npy"
-      tremor_path: "../data/newzealand/tremor"
-      mask_key:    "newzealand"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/newzealand/slip_potency_smooth"
+      fault_path:  "data/newzealand/fault"
+      llh_path:    "data/newzealand/fault/llh"
+      mean_path:   "data/newzealand/norm_value/mean.npy"
+      std_path:    "data/newzealand/norm_value/std.npy"
+      tremor_path: "data/newzealand/tremor"
+      mask_key:    "newzealand"          # data/high_value_masks.npz 里对应的 key
 
   checkpoint_path: "./Results/_ddp_smoke/00/training_checkpoints/backbone.ckpt"
   best_checkpoint_path: "./Results/_ddp_smoke/00/training_checkpoints/best_model.ckpt"

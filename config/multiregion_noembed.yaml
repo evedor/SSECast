@@ -1,18 +1,3 @@
-### 4 卡区域并行 DDP 的正式配置：与 multiregion_l2.yaml 相同（loss=l2），
-# 只是把产物落到 ./Results/multiregion_l2_ddp/，便于和单卡 l2 实验区分。
-# 用法: torchrun --nproc_per_node=4 --standalone train_ddp.py --yaml_config ./config/multiregion_l2_ddp.yaml
-### L2 版多区域预训练（与 multiregion.yaml 的唯一区别：loss_mode -> l2）
-#
-# 目的：上一版用 l1（中位数回归）训练，实测日变化幅度只复现真值的 32%，
-#       用 L2 的 weight_rmse/weight_acc 评测时短 lead 明显吃亏。
-#       本配置把训练目标换成 L2（均值回归），其余（架构 / token 布局 / 时间窗 / 阶段计划）逐字不动，
-#       保证"只有损失口径变了"，便于和 ./Results/multiregion 逐 lead 对比。
-#
-# 用法:
-#   python train.py --yaml_config ./config/multiregion_l2.yaml --config multiregion
-# 产物:
-#   ./Results/multiregion_l2/00/training_checkpoints/{best_model,global_best,region_*_best}.ckpt
-#
 ### 多区域共享模型（cascadia / alaska / nankai / newzealand 一起训）
 # 用法: python train.py --yaml_config ./config/multiregion.yaml --config multiregion
 # 设计：proj / 主干 / head / pos_embed_grid 全区域共享；每个区域有自己的
@@ -20,7 +5,7 @@
 #   数据归一化(mean/std)、loss 深度权重；region_embed 表达"哪个区域"。
 multiregion: &multiregion
   run_num: "00"
-  exper_path: "./Results/multiregion_l2_ddp"
+  exper_path: "./Results/multiregion_noembed"
 
   # ---- 区域清单：训练 / 评估的顺序；只想跑部分区域就改这一行（区域设置不用动）----
   regions: ["cascadia", "alaska", "nankai", "newzealand"]
@@ -37,7 +22,7 @@ multiregion: &multiregion
   #   pos_embed_mode: grid(共享二维网格) / table(每 token 一个向量) / none(不用显式位置编码)
   pos_embed_mode: "none"
   # region_embed 承担"我是哪个区域"：onehot = 每区一个独立基向量 × region_embed_scale
-  region_embed: !!bool True
+  region_embed: !!bool False
   region_embed_init: "onehot"     # onehot（推荐）/ normal / zeros（原行为）
   region_embed_scale: 0.02
 
@@ -60,26 +45,23 @@ multiregion: &multiregion
   out_chans: 3
   block_len: 1
   n_blocks: 2
-  rollout_horizon: 6
+  rollout_horizon: 2
   target_mode: "next_day"
   target_window: 5
-  predict_delta: !!bool False     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）
-  delta_weight: 0                # Δ 项权重（1 = 精度项与 Δ 项各占一半；原来 2 使 Δ 占 85%）
-  loss_mode: "l2"
-  mask_path: "../data/high_value_masks.npz"
+  predict_delta: !!bool True     # 输出 Δ，绝对场 = 输入窗最后一天 + Δ（persistence 锚点）
+  delta_weight: 1                # Δ 项权重（1 = 精度项与 Δ 项各占一半；原来 2 使 Δ 占 85%）
+  loss_mode: "l1"
+  mask_path: "data/high_value_masks.npz"
   mask_boost: 1.0
 
   # ---- 训练 ----
   device: "cuda"
   dt: 1
-  lr: 0.0005
+  lr: 0.0007
   batch_size: 48                  # 每区每步 48 条；4 区累积 → 有效 batch 192
   max_epochs: 100
   early_stopping_patience: 40
   use_tremor: !!bool False
-  # 4 卡任务里 /dev/shm 默认很小，DataLoader worker 会报 No space left on device；
-  # 本工程 dataset 只做 np.stack，主进程读足够快，直接关掉 worker。
-  num_workers: 0
   two_step_training: !!bool True
 
   # ---- 每个区域的全部设置：数据 / 归一化 / 断层 / mask key 都在这里 ----
@@ -87,38 +69,38 @@ multiregion: &multiregion
   #   data_path 指向“已归一化前的原始 slip 数据”目录（内部再分 train/eval/test）。
   region_configs:
     cascadia:
-      data_path:   "../data/cascadia/slip_potency_smooth"
-      fault_path:  "../data/cascadia/fault"
-      llh_path:    "../data/cascadia/fault/llh"
-      mean_path:   "../data/cascadia/norm_value/mean.npy"
-      std_path:    "../data/cascadia/norm_value/std.npy"
-      tremor_path: "../data/cascadia/tremor"
-      mask_key:    "cascadia"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/cascadia/slip_potency_smooth"
+      fault_path:  "data/cascadia/fault"
+      llh_path:    "data/cascadia/fault/llh"
+      mean_path:   "data/cascadia/norm_value/mean.npy"
+      std_path:    "data/cascadia/norm_value/std.npy"
+      tremor_path: "data/cascadia/tremor"
+      mask_key:    "cascadia"          # data/high_value_masks.npz 里对应的 key
     alaska:
-      data_path:   "../data/alaska/slip_potency_smooth"
-      fault_path:  "../data/alaska/fault"
-      llh_path:    "../data/alaska/fault/llh"
-      mean_path:   "../data/alaska/norm_value/mean.npy"
-      std_path:    "../data/alaska/norm_value/std.npy"
-      tremor_path: "../data/alaska/tremor"
-      mask_key:    "alaska"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/alaska/slip_potency_smooth"
+      fault_path:  "data/alaska/fault"
+      llh_path:    "data/alaska/fault/llh"
+      mean_path:   "data/alaska/norm_value/mean.npy"
+      std_path:    "data/alaska/norm_value/std.npy"
+      tremor_path: "data/alaska/tremor"
+      mask_key:    "alaska"          # data/high_value_masks.npz 里对应的 key
     nankai:
-      data_path:   "../data/nankai/slip_potency_smooth"
-      fault_path:  "../data/nankai/fault"
-      llh_path:    "../data/nankai/fault/llh"
-      mean_path:   "../data/nankai/norm_value/mean.npy"
-      std_path:    "../data/nankai/norm_value/std.npy"
-      tremor_path: "../data/nankai/tremor"
-      mask_key:    "nankai"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/nankai/slip_potency_smooth"
+      fault_path:  "data/nankai/fault"
+      llh_path:    "data/nankai/fault/llh"
+      mean_path:   "data/nankai/norm_value/mean.npy"
+      std_path:    "data/nankai/norm_value/std.npy"
+      tremor_path: "data/nankai/tremor"
+      mask_key:    "nankai"          # data/high_value_masks.npz 里对应的 key
     newzealand:
-      data_path:   "../data/newzealand/slip_potency_smooth"
-      fault_path:  "../data/newzealand/fault"
-      llh_path:    "../data/newzealand/fault/llh"
-      mean_path:   "../data/newzealand/norm_value/mean.npy"
-      std_path:    "../data/newzealand/norm_value/std.npy"
-      tremor_path: "../data/newzealand/tremor"
-      mask_key:    "newzealand"          # ../data/high_value_masks.npz 里对应的 key
+      data_path:   "data/newzealand/slip_potency_smooth"
+      fault_path:  "data/newzealand/fault"
+      llh_path:    "data/newzealand/fault/llh"
+      mean_path:   "data/newzealand/norm_value/mean.npy"
+      std_path:    "data/newzealand/norm_value/std.npy"
+      tremor_path: "data/newzealand/tremor"
+      mask_key:    "newzealand"          # data/high_value_masks.npz 里对应的 key
 
-  checkpoint_path: "./Results/multiregion_l2_ddp/00/training_checkpoints/backbone.ckpt"
-  best_checkpoint_path: "./Results/multiregion_l2_ddp/00/training_checkpoints/best_model.ckpt"
-  writer: "./Results/multiregion_l2_ddp/00/tensorboard"
+  checkpoint_path: "./Results/multiregion/00/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "./Results/multiregion/00/training_checkpoints/best_model.ckpt"
+  writer: "./Results/multiregion/00/tensorboard"

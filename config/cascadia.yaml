@@ -3,12 +3,12 @@
 full_field: &FULL_FIELD
   run_num: "00"
   exper_path: "./Results/cascadia"
-  data_path: "../data/cascadia/slip_potency_smooth"
-  fault_path: "../data/cascadia/fault"
-  tremor_path: "../data/cascadia/tremor"
-  llh_path: "../data/cascadia/fault/llh"
-  mean_path: "../data/cascadia/norm_value/mean.npy"
-  std_path: "../data/cascadia/norm_value/std.npy"
+  data_path: "data/cascadia/slip_potency_smooth"
+  fault_path: "data/cascadia/fault"
+  tremor_path: "data/cascadia/tremor"
+  llh_path: "data/cascadia/fault/llh"
+  mean_path: "data/cascadia/norm_value/mean.npy"
+  std_path: "data/cascadia/norm_value/std.npy"
   device: "cuda"
   use_tremor: !!bool False
   early_stopping_patience: 40
@@ -50,7 +50,7 @@ full_field: &FULL_FIELD
   target_window: 5             # 每个窗口的平均天数
 
   # ---- 高价值区(SSE)加权：原有按深度的加权不变，mask 内的单元权重再 ×mask_boost ----
-  mask_path: "../data/high_value_masks.npz"
+  mask_path: "data/high_value_masks.npz"
   mask_key: "cascadia"      # 留空/删掉则默认用区域名(cascadia/alaska/nankai/newzealand)
   mask_boost: 1.0           # mask 区权重倍数；1.0 = 关闭（等于改造前的纯深度加权）
 
