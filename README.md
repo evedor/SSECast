@@ -152,10 +152,8 @@ validates missing/unexpected keys, so an architecture mismatch raises an error.
 * `pos_embed_mode: none` — positional information comes from rotary position encoding
   on the token index.
 * Region conditioning enters at three places: a learnable region-identity vector added
-  to the patch embeddings, a zero-initialised residual adapter after the last block,
-  and a region-specific output head. With `region_embed_init: "zeros"` the first of
-  these starts at zero and is learned; setting `region_embed: False` removes it
-  entirely (1,024 fewer parameters — 67,488,678 instead of 67,489,702).
+  to the patch embeddings, a residual adapter after the last block, and a
+  region-specific output head.
 
 ## Scope
 
