@@ -1,20 +1,8 @@
-### 4 卡区域并行 DDP 的正式配置：与 multiregion_l2.yaml 相同（loss=l2），
-# 只是把产物落到 ./Results/multiregion_l2_ddp/，便于和单卡 l2 实验区分。
-# 用法: torchrun --nproc_per_node=4 --standalone train_ddp.py --yaml_config ./config/multiregion_l2_ddp.yaml
-### L2 版多区域预训练（与 multiregion.yaml 的唯一区别：loss_mode -> l2）
+### 多区域 MoE 主干：4 卡区域并行 DDP 训练配置（正式配置）
+# 用法: torchrun --nproc_per_node=4 --standalone train_ddp.py \
+#         --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
+# 产物: ./Results/multiregion_l2_ddp/00/training_checkpoints/*.ckpt
 #
-# 目的：上一版用 l1（中位数回归）训练，实测日变化幅度只复现真值的 32%，
-#       用 L2 的 weight_rmse/weight_acc 评测时短 lead 明显吃亏。
-#       本配置把训练目标换成 L2（均值回归），其余（架构 / token 布局 / 时间窗 / 阶段计划）逐字不动，
-#       保证"只有损失口径变了"，便于和 ./Results/multiregion 逐 lead 对比。
-#
-# 用法:
-#   python train.py --yaml_config ./config/multiregion_l2.yaml --config multiregion
-# 产物:
-#   ./Results/multiregion_l2/00/training_checkpoints/{best_model,global_best,region_*_best}.ckpt
-#
-### 多区域共享模型（cascadia / alaska / nankai / newzealand 一起训）
-# 用法: python train.py --yaml_config ./config/multiregion.yaml --config multiregion
 # 设计：proj / 主干 / head / pos_embed_grid 全区域共享；每个区域有自己的
 #   token 布局(slot_index)、回填索引、网格采样坐标（保长宽比 letterbox 归一化）、
 #   数据归一化(mean/std)、loss 深度权重；region_embed 表达"哪个区域"。
