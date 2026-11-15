@@ -116,28 +116,9 @@ python finetune_per_region.py \
   --ft_regions cascadia,alaska,nankai,newzealand
 ```
 
-`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml` (the architecture must
-match the pretrained checkpoint), and `config/finetune_per_region.yaml` supplies
-`pretrained_ckpt_path`, `out_dir`, learning rate, epochs and patience. All of these can
-be overridden on the command line.
-
-The shared trunk is frozen and kept bit-identical; only `region_adapters.<region>` and
-`region_heads.<region>` are trained, one region at a time, and the four independently
-tuned modules are then merged into a single checkpoint with the same structure as a
-training checkpoint (`model_state` / `optimizer_state_dict` / `meta`). The merge step
-asserts that every changed tensor belongs to a region-specific module.
-
-| key in `config/finetune_per_region.yaml` | meaning |
-| --- | --- |
-| `pretrained_ckpt_path` | starting checkpoint; must share the architecture of `base_yaml` |
-| `ft_regions` | regions to tune, in execution order (also settable with `--ft_regions`) |
-| `keep_adapters` | `true` = adapter + head; `false` = head only (a linear probe) |
-| `loss_mode` | fine-tuning loss; `l2` corrects amplitude damping, `l1` matches L1 pre-training |
-| `lr`, `max_epochs`, `early_stopping_patience` | budget applied independently to each region |
-
-Do **not** change `regions`, `patch_size`, `token_*` or `pos_embed_mode` in the
-fine-tuning configuration: the script loads the checkpoint with `strict=True` and
-validates missing/unexpected keys, so an architecture mismatch raises an error.
+`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml`, and
+`config/finetune_per_region.yaml` supplies `pretrained_ckpt_path`, `out_dir`, learning
+rate, epochs and patience. All of these can be overridden on the command line.
 
 ## Model notes
 
