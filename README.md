@@ -144,3 +144,9 @@ This release contains the training code for the multi-region MoE backbone. Raw G
 observations, source inversions (slip-potency fields), normalisation statistics, tremor
 catalogues, trained checkpoints and forecast products are not included. No license has been assigned yet; contact the repository
 owner before reusing the code.
+
+## Prospective forecasts
+
+The automated prospective SSECast experiment is available at
+<https://ssecast-cascadia.github.io/>, where daily updated SSE forecasts for Cascadia
+are provided.
