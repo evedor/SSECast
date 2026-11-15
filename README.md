@@ -14,13 +14,12 @@ SSECast/
 ├── train.py                     # single-process training (same config; 1 GPU is enough for testing)
 ├── train_ddp.py                 # multi-GPU DDP training — the reference entry point
 ├── finetune_per_region.py       # per-region fine-tuning of adapter+head, merged into one checkpoint
-├── FINETUNE_PER_REGION.md       # notes on the fine-tuning workflow
 ├── config/
 │   ├── multiregion_l2_ddp.yaml  # training (reference configuration)
 │   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
-├── data/<region>/fault/         # fault geometry (included); slip fields are not (see data/README.md)
+├── data/<region>/fault/         # fault geometry (included); slip fields are not
 └── requirements.txt
 ```
 
@@ -41,13 +40,24 @@ pip install -r requirements.txt
 
 ## Data
 
-The fault geometry (`data/<region>/fault/`) is distributed with this repository. The
-slip-potency fields and the normalisation statistics are **not**; see
-[`data/README.md`](data/README.md) for the expected layout and for the public sources
-and preprocessing code from which they can be reconstructed. The configurations point
-at `data/<region>/...` by default.
+**Included.** The fault geometry of all four regions:
 
-Each region needs the following files:
+```text
+data/<region>/fault/{lat, lon, llh, dip, strike, area, height}
+```
+
+`lat` and `lon` hold the three vertex coordinates of each triangular element (one row
+per element); `dip`, `strike`, `area` and `height` carry the corresponding element
+attributes. Element ordering is the ordering used by the slip inversions and is
+relied on by the code, so the rows must not be re-ordered.
+
+**Not included.** The slip-potency fields and the normalisation statistics are derived
+from geodetic slip inversions and are not distributed with this repository; they are
+available from the corresponding author on reasonable request, or can be regenerated
+(see *Reconstructing the inputs* below).
+
+Each region needs the following files (the configurations point at `data/<region>/...`
+by default):
 
 ```text
 data/<region>/
@@ -63,6 +73,18 @@ data/<region>/
 Train, evaluation and test periods must be chronological and non-overlapping. To use a
 different location, edit `region_configs.<region>.{data_path, fault_path, llh_path,
 mean_path, std_path, tremor_path}` in the configuration.
+
+`slip`, `slip_strike` and `slip_dip` are whitespace-delimited daily arrays of shape
+`time × fault element`, in the element order of `fault/lat`.
+
+*Reconstructing the inputs.* Daily slip-potency inversions are produced with the
+near-real-time SSE workflow (<https://near-real-time-sse.esc.cam.ac.uk/cascadia/>) and
+the preprocessing code in <https://github.com/Geolandi/sse_postprocessing> (Julia) or
+<https://github.com/Geolandi/sse_postprocessing_matlab> (MATLAB; the filtering step
+needs a separate implementation). `norm_value/{mean.npy, std.npy}` must be computed
+from the training split only, per channel. For a new region, discretise the Slab2
+interface (Hayes, 2018) into triangular elements of ~15 km edge length and keep the
+element ordering used by the inversion.
 
 ## Training
 
@@ -95,10 +117,28 @@ python finetune_per_region.py \
   --ft_regions cascadia,alaska,nankai,newzealand
 ```
 
-`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml` (architecture must match
-the pretrained checkpoint), and `config/finetune_per_region.yaml` supplies
-`pretrained_ckpt_path`, `out_dir`, learning rate, epochs and patience. All of these
-can be overridden on the command line.
+`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml` (the architecture must
+match the pretrained checkpoint), and `config/finetune_per_region.yaml` supplies
+`pretrained_ckpt_path`, `out_dir`, learning rate, epochs and patience. All of these can
+be overridden on the command line.
+
+The shared trunk is frozen and kept bit-identical; only `region_adapters.<region>` and
+`region_heads.<region>` are trained, one region at a time, and the four independently
+tuned modules are then merged into a single checkpoint with the same structure as a
+training checkpoint (`model_state` / `optimizer_state_dict` / `meta`). The merge step
+asserts that every changed tensor belongs to a region-specific module.
+
+| key in `config/finetune_per_region.yaml` | meaning |
+| --- | --- |
+| `pretrained_ckpt_path` | starting checkpoint; must share the architecture of `base_yaml` |
+| `ft_regions` | regions to tune, in execution order (also settable with `--ft_regions`) |
+| `keep_adapters` | `true` = adapter + head; `false` = head only (a linear probe) |
+| `loss_mode` | fine-tuning loss; `l2` corrects amplitude damping, `l1` matches L1 pre-training |
+| `lr`, `max_epochs`, `early_stopping_patience` | budget applied independently to each region |
+
+Do **not** change `regions`, `patch_size`, `token_*` or `pos_embed_mode` in the
+fine-tuning configuration: the script loads the checkpoint with `strict=True` and
+validates missing/unexpected keys, so an architecture mismatch raises an error.
 
 ## Model notes
 

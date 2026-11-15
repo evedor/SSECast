@@ -1,7 +1,6 @@
 # data/: only the fault geometry is distributed; slip-potency fields and the
-# normalisation statistics are not (see data/README.md)
+# normalisation statistics are not (see the Data section of README.md)
 data/**
-!data/README.md
 !data/*/
 !data/*/fault/
 !data/*/fault/**
