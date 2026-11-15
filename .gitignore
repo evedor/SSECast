@@ -1,5 +1,10 @@
-data/*
+# data/: only the fault geometry is distributed; slip-potency fields and the
+# normalisation statistics are not (see data/README.md)
+data/**
 !data/README.md
+!data/*/
+!data/*/fault/
+!data/*/fault/**
 outputs/*
 !outputs/.gitkeep
 *.ckpt

@@ -20,7 +20,7 @@ SSECast/
 │   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
-├── data/                        # regional input data (not distributed; see data/README.md)
+├── data/<region>/fault/         # fault geometry (included); slip fields are not (see data/README.md)
 └── requirements.txt
 ```
 
@@ -41,10 +41,11 @@ pip install -r requirements.txt
 
 ## Data
 
-The slip-potency fields and the normalisation statistics are **not distributed** with
-this repository; see [`data/README.md`](data/README.md) for the expected layout and for
-the public sources and preprocessing code from which the inputs can be reconstructed.
-The configurations point at `data/<region>/...` by default.
+The fault geometry (`data/<region>/fault/`) is distributed with this repository. The
+slip-potency fields and the normalisation statistics are **not**; see
+[`data/README.md`](data/README.md) for the expected layout and for the public sources
+and preprocessing code from which they can be reconstructed. The configurations point
+at `data/<region>/...` by default.
 
 Each region needs the following files:
 
