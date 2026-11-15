@@ -74,17 +74,15 @@ mean_path, std_path, tremor_path}` in the configuration.
 `slip`, `slip_strike` and `slip_dip` are whitespace-delimited daily arrays of shape
 `time × fault element`, in the element order of `fault/lat`.
 
-*Reconstructing the inputs.* We use the near-real-time GNSS position series processed
-by Gualandi and co-workers (Gualandi, 2025,
-<https://doi.org/10.1093/gji/ggaf198>), distributed through the near-real-time SSE
-portal (<https://near-real-time-sse.esc.cam.ac.uk/cascadia/>), and invert them for
-daily slip-potency distributions with the PYEQ kinematic inversion software
-(<https://github.com/JMNocquet/pyeq36>; Nocquet, 2022,
+*Reconstructing the inputs.* We use the near-real-time GNSS position series distributed
+through the near-real-time SSE portal
+(<https://near-real-time-sse.esc.cam.ac.uk/cascadia/>; <https://doi.org/10.1093/gji/ggaf198>),
+and invert them for daily slip-potency distributions with the PYEQ kinematic inversion
+software (<https://github.com/JMNocquet/pyeq36>, archived at
 <https://doi.org/10.5281/zenodo.7467256>). `norm_value/{mean.npy, std.npy}` must be
 computed from the training split only, per channel. For a new region, discretise the
-Slab2 interface (Hayes et al., 2018, <https://doi.org/10.1126/science.aat4723>) into
-triangular elements of ~15 km edge length and keep the element ordering used by the
-inversion.
+Slab2 interface (<https://doi.org/10.1126/science.aat4723>) into triangular elements of
+~15 km edge length and keep the element ordering used by the inversion.
 
 ## Training
 
