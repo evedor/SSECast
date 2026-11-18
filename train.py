@@ -127,7 +127,7 @@ class Config(PretrainedConfig):
         # grid 的坐标体系：uv(沿倾角弧长/条带号) 或 lonlat(token 平均经纬度)
         self.pos_coord_mode = ('region' if self.regions
                                else str(getattr(self.params, 'pos_coord_mode', 'uv')).lower())
-        self.region_embed = bool(getattr(self.params, 'region_embed', True))
+        self.region_embed = bool(getattr(self.params, 'region_embed', False))
         self.region_embed_init = str(getattr(self.params, 'region_embed_init', 'onehot')).lower()
         self.region_embed_scale = float(getattr(self.params, 'region_embed_scale', 0.02))
         # ---- 区域专属 Adapter / Head + 区域均衡梯度累积 + 两阶段训练 ----

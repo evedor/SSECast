@@ -408,7 +408,7 @@ class SSEPREModel(nn.Module):
             # grid_sample 的坐标是 (x=列, y=行)，范围 [-1, 1]
             self.register_buffer('pos_grid_coords', coords, persistent=False)
         elif self.pos_embed_mode in ('none', 'off', 'no', 'null'):
-            pass                      # 不用任何显式位置编码：位置信息只由 RoPE（序号）+ region_embed 提供
+            pass                      # 只使用注意力中的 RoPE（token 序号）
         else:
             self.pos_embed = nn.Parameter(torch.zeros(1, num_patches, config.hidden_size))
         # 条带对齐时，输出从 (n_slots) 收回 fea_len 个单元
@@ -418,7 +418,7 @@ class SSEPREModel(nn.Module):
             None if unpad_index is None else torch.as_tensor(unpad_index, dtype=torch.long),
             persistent=False,
         )
-        # ---- 多区域：每区域一套 回填索引 + 网格采样坐标；region embedding 表达"哪个区域"----
+        # ---- 多区域：每区域一套回填索引和网格采样坐标 ----
         region_layouts = getattr(config, 'region_layouts', None) or {}
         self.region_names = list(region_layouts.keys())
         self.region_index = {r: i for i, r in enumerate(self.region_names)}
@@ -433,8 +433,9 @@ class SSEPREModel(nn.Module):
                 self.register_buffer(co, torch.as_tensor(lay['grid_coords'], dtype=torch.float32),
                                      persistent=False)
                 self._region_coords_buffers[r] = co
+        # 旧实验显式启用此分支，用于加载和复现原 checkpoint。
         self.region_embed = None
-        if self.region_names and bool(getattr(config, 'region_embed', True)):
+        if self.region_names and bool(getattr(config, 'region_embed', False)):
             n_reg = len(self.region_names)
             self.region_embed = nn.Embedding(n_reg, config.hidden_size)
             # 区域身份的初始化：onehot = 每区一个独立的 0.02 基向量（第一步就带"我是谁"的信号）；
@@ -567,7 +568,7 @@ class SSEPREModel(nn.Module):
         """x: (B, time_chans, data_chans, fea_len)。
 
         ``region`` 只在多区域训练时给出（如 ``"cascadia"``）：用来选该区域的槽位映射、
-        回填索引与网格采样坐标，并加上该区域的 region embedding。单区域时保持原行为。
+        回填索引、网格采样坐标及区域专用模块。只有显式开启时才叠加区域身份向量。
         """
         all_router_logits = [] if self.config.output_router_logits else None
         # 增量预测模式：模型只输出 Δ，绝对场 = 输入窗最后一天 + Δ。
@@ -593,7 +594,7 @@ class SSEPREModel(nn.Module):
             x = x + grid_pe
         elif self.pos_embed is not None:
             x = x + self.pos_embed
-        # 区域身份向量：独立于位置编码（pos_embed_mode="none" 时也要生效）
+        # 旧实验复现：区域身份向量独立于位置编码。
         if self.region_embed is not None and use_region is not None:
             x = x + self.region_embed.weight[self.region_index[use_region]].view(1, 1, -1)
         

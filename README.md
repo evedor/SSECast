@@ -5,9 +5,9 @@ fields. The model advances two consecutive slip-potency fields to a future sourc
 field with an encoder–decoder backbone whose four transformer blocks each contain a
 mixture-of-experts (MoE) layer (`expert_num = 4`, `topk = 2`, plus one shared
 expert). A single set of shared weights is trained jointly on four subduction zones
-— Cascadia, Alaska, Nankai and New Zealand — with region conditioning supplied by a
-learnable region-identity embedding, a residual adapter and a region-specific output
-head.
+— Cascadia, Alaska, Nankai and New Zealand. Each region has its own mesh layout,
+residual adapter and output head. The two no-embedding configurations train
+the shared backbone without adding a region-identity vector to the patch tokens.
 
 ```text
 SSECast/
@@ -15,7 +15,9 @@ SSECast/
 ├── train_ddp.py                 # multi-GPU DDP training — the reference entry point
 ├── finetune_per_region.py       # per-region fine-tuning of adapter+head, merged into one checkpoint
 ├── config/
-│   ├── multiregion_l2_ddp.yaml  # training (reference configuration)
+│   ├── multiregion_noembed.yaml     # L1, region embedding disabled
+│   ├── multiregion_l2_noembed.yaml  # L2, region embedding disabled
+│   ├── multiregion_l2_ddp.yaml      # original Cast configuration, region embedding enabled
 │   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
@@ -87,7 +89,18 @@ length and keep the element ordering used by the inversion.
 
 ## Training
 
-Reference training run (4 GPUs):
+To train from scratch without region embeddings, select one of the two experiment
+configurations. Both use persistence-anchored delta prediction
+(`predict_delta: true`, `delta_weight: 1`) and a learning rate of 0.0007.
+
+```bash
+python train.py --yaml_config ./config/multiregion_noembed.yaml --config multiregion
+# L2 variant
+python train.py --yaml_config ./config/multiregion_l2_noembed.yaml --config multiregion
+```
+
+To reproduce the original `Cast` training configuration with region embeddings
+on four GPUs, run
 
 ```bash
 torchrun --nproc_per_node=4 --standalone train_ddp.py \
@@ -118,7 +131,9 @@ python finetune_per_region.py \
 
 `--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml`, and
 `config/finetune_per_region.yaml` supplies `pretrained_ckpt_path`, `out_dir`, learning
-rate, epochs and patience. All of these can be overridden on the command line.
+rate, epochs and patience. When fine-tuning a no-embedding model, set
+`--base_yaml` to its training configuration and `--pretrained_ckpt_path` to the
+checkpoint from that run. Use a separate `--tag` or `--out_dir` for its results.
 
 ## Model notes
 
@@ -134,9 +149,11 @@ rate, epochs and patience. All of these can be overridden on the command line.
   elements.
 * `pos_embed_mode: none` — positional information comes from rotary position encoding
   on the token index.
-* Region conditioning enters at three places: a learnable region-identity vector added
-  to the patch embeddings, a residual adapter after the last block, and a
-  region-specific output head.
+* With `region_embed: false` (also the model default when omitted), the model
+  creates no `region_embed.weight` parameter. Region selection still determines
+  the mesh layout, the residual adapter after the last block and the output head.
+  The original `Cast` configuration explicitly enables the embedding. Use the
+  configuration matching the checkpoint when reproducing routing analyses.
 
 ## Scope
 
