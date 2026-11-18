@@ -14,7 +14,7 @@
 
 用法：
     torchrun --nproc_per_node=4 --standalone train_ddp.py \
-        --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
+        --yaml_config ./config/multiregion_l2.yaml --config multiregion
     单卡冒烟：torchrun --nproc_per_node=1 --standalone train_ddp.py ... --debug_steps 3
 """
 import argparse
@@ -47,7 +47,7 @@ def ddp_env():
 
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--yaml_config', default='./config/multiregion_l2_ddp.yaml', type=str)
+    p.add_argument('--yaml_config', default='./config/multiregion_l2.yaml', type=str)
     p.add_argument('--config', default='multiregion', type=str)
     p.add_argument('--debug_steps', default=0, type=int, help='>0 时每 epoch 只跑这么多步（冒烟用）')
     p.add_argument('--resume', default='', type=str, help='从某个 ckpt 继续（可选）')

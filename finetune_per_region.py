@@ -1,7 +1,7 @@
 """按区域逐个微调各区域的 adapter / head，最后合并成一个 ckpt。
 
 用途（多区域预训练 -> 单区域微调）：
-    1. 用 config/multiregion_l2_ddp.yaml 建**完整**多区域模型（四个区域都在，架构不能缩，否则权重对不上）；
+    1. 用 config/multiregion_l2.yaml 建**完整**多区域模型（四个区域都在，架构不能缩，否则权重对不上）；
     2. 加载多区域预训练权重（best_model.ckpt / global_best.ckpt / merged_per_region_best.ckpt 都行）；
     3. 对 ft_regions 里每个区域 r 依次：
          - 只放开 ``region_adapters.<r>.*`` 与 ``region_heads.<r>.*``；共享主干、
@@ -44,7 +44,7 @@ from networks.model import SSEPREModel
 # --------------------------------------------------------------------------- args
 def parse_args():
     p = argparse.ArgumentParser()
-    p.add_argument('--base_yaml', default='./config/multiregion_l2_ddp.yaml', type=str)
+    p.add_argument('--base_yaml', default='./config/multiregion_l2.yaml', type=str)
     p.add_argument('--base_config', default='multiregion', type=str)
     p.add_argument('--ft_yaml', default='./config/finetune_per_region.yaml', type=str)
     p.add_argument('--ft_config', default='l2', type=str)

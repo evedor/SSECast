@@ -6,8 +6,7 @@ field with an encoder–decoder backbone whose four transformer blocks each cont
 mixture-of-experts (MoE) layer (`expert_num = 4`, `topk = 2`, plus one shared
 expert). A single set of shared weights is trained jointly on four subduction zones
 — Cascadia, Alaska, Nankai and New Zealand. Each region has its own mesh layout,
-residual adapter and output head. The two no-embedding configurations train
-the shared backbone without adding a region-identity vector to the patch tokens.
+residual adapter and output head. The L2 training configuration disables the region-identity embedding.
 
 ```text
 SSECast/
@@ -15,19 +14,13 @@ SSECast/
 ├── train_ddp.py                 # multi-GPU DDP training — the reference entry point
 ├── finetune_per_region.py       # per-region fine-tuning of adapter+head, merged into one checkpoint
 ├── config/
-│   ├── multiregion_noembed.yaml     # L1, region embedding disabled
-│   ├── multiregion_l2_noembed.yaml  # L2, region embedding disabled
-│   ├── multiregion_l2_ddp.yaml      # original Cast configuration, region embedding enabled
+│   ├── multiregion_l2.yaml      # multi-region L2 training
 │   └── finetune_per_region.yaml # fine-tuning hyper-parameters
 ├── networks/                    # model definition (SSEPREModel, MoE blocks)
 ├── utils/                       # data loading, mesh tokenisation, losses, metrics
 ├── data/<region>/fault/         # fault geometry (included); slip fields are not
 └── requirements.txt
 ```
-
-`multiregion_l2_ddp.yaml` — L2 loss, `rollout_horizon = 2` (two-step roll-out,
-`n_blocks = 2`, `block_len = 1`), no Δ (persistence-anchored) parameterisation
-(`predict_delta: False`), 4-GPU DDP.
 
 ## Installation
 
@@ -89,33 +82,23 @@ length and keep the element ordering used by the inversion.
 
 ## Training
 
-To train from scratch without region embeddings, select one of the two experiment
-configurations. Both use persistence-anchored delta prediction
-(`predict_delta: true`, `delta_weight: 1`) and a learning rate of 0.0007.
+The L2 configuration uses two autoregressive steps, persistence-anchored delta
+prediction (`predict_delta: true`, `delta_weight: 1`) and a learning rate of 0.0007.
+
+For one GPU, run
 
 ```bash
-python train.py --yaml_config ./config/multiregion_noembed.yaml --config multiregion
-# L2 variant
-python train.py --yaml_config ./config/multiregion_l2_noembed.yaml --config multiregion
+python train.py --yaml_config ./config/multiregion_l2.yaml --config multiregion
 ```
 
-To reproduce the original `Cast` training configuration with region embeddings
-on four GPUs, run
+For four GPUs, run
 
 ```bash
-torchrun --nproc_per_node=4 --standalone train_ddp.py \
-  --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
+torchrun --nproc_per_node=4 --standalone train_ddp.py --yaml_config ./config/multiregion_l2.yaml --config multiregion
 ```
 
-The same configuration can be used by the single-process trainer, e.g. for a smoke
-test on one GPU:
-
-```bash
-python train.py --yaml_config ./config/multiregion_l2_ddp.yaml --config multiregion
-```
-
-Checkpoints and TensorBoard logs are written to the `exper_path` of the configuration
-(`Results/multiregion_l2_ddp/00/...` by default) and are not tracked by Git.
+Both commands write checkpoints and TensorBoard logs under
+`Results/multiregion_l2_noembed/00/`.
 
 ## Fine-tuning
 
@@ -129,11 +112,10 @@ python finetune_per_region.py \
   --ft_regions cascadia,alaska,nankai,newzealand
 ```
 
-`--base_yaml` defaults to `./config/multiregion_l2_ddp.yaml`, and
-`config/finetune_per_region.yaml` supplies `pretrained_ckpt_path`, `out_dir`, learning
-rate, epochs and patience. When fine-tuning a no-embedding model, set
-`--base_yaml` to its training configuration and `--pretrained_ckpt_path` to the
-checkpoint from that run. Use a separate `--tag` or `--out_dir` for its results.
+Fine-tuning uses `config/multiregion_l2.yaml` for the architecture and reads
+the best checkpoint from that training run. Set `--pretrained_ckpt_path` to
+select a different matching checkpoint. The learning rate, epoch limit and
+output paths are in `config/finetune_per_region.yaml`.
 
 ## Model notes
 

@@ -1,0 +1,86 @@
+multiregion: &multiregion
+  run_num: "00"
+  exper_path: "./Results/multiregion_l2_noembed"
+
+  regions: ["cascadia", "alaska", "nankai", "newzealand"]
+
+  patch_size: 2
+  token_pairing: "diagonal_fill"
+  token_order: "auto"
+  token_jump_km: 30
+  align_tokens: !!bool False
+
+  pos_embed_mode: "none"
+  region_embed: !!bool False
+
+  region_adapter: !!bool True
+  region_adapter_ratio: 4
+  region_head: !!bool True
+  region_balanced: !!bool True
+  stage1_epochs: 20
+  stage2_epochs: 15
+  stage2_patience: 5
+  stage2_train: "heads+adapters"
+  stage2_lr: 0.0005
+  stage2_per_region_best: !!bool True
+
+  time_chans: 2
+  data_chans: 3
+  out_chans: 3
+  block_len: 1
+  n_blocks: 2
+  rollout_horizon: 2
+  target_mode: "next_day"
+  target_window: 5
+  predict_delta: !!bool True
+  delta_weight: 1
+  loss_mode: "l2"
+  mask_path: "data/high_value_masks.npz"
+  mask_boost: 1.0
+
+  device: "cuda"
+  dt: 1
+  lr: 0.0007
+  batch_size: 48
+  max_epochs: 100
+  early_stopping_patience: 40
+  use_tremor: !!bool False
+  two_step_training: !!bool True
+
+  region_configs:
+    cascadia:
+      data_path:   "data/cascadia/slip_potency_smooth"
+      fault_path:  "data/cascadia/fault"
+      llh_path:    "data/cascadia/fault/llh"
+      mean_path:   "data/cascadia/norm_value/mean.npy"
+      std_path:    "data/cascadia/norm_value/std.npy"
+      tremor_path: "data/cascadia/tremor"
+      mask_key:    "cascadia"
+    alaska:
+      data_path:   "data/alaska/slip_potency_smooth"
+      fault_path:  "data/alaska/fault"
+      llh_path:    "data/alaska/fault/llh"
+      mean_path:   "data/alaska/norm_value/mean.npy"
+      std_path:    "data/alaska/norm_value/std.npy"
+      tremor_path: "data/alaska/tremor"
+      mask_key:    "alaska"
+    nankai:
+      data_path:   "data/nankai/slip_potency_smooth"
+      fault_path:  "data/nankai/fault"
+      llh_path:    "data/nankai/fault/llh"
+      mean_path:   "data/nankai/norm_value/mean.npy"
+      std_path:    "data/nankai/norm_value/std.npy"
+      tremor_path: "data/nankai/tremor"
+      mask_key:    "nankai"
+    newzealand:
+      data_path:   "data/newzealand/slip_potency_smooth"
+      fault_path:  "data/newzealand/fault"
+      llh_path:    "data/newzealand/fault/llh"
+      mean_path:   "data/newzealand/norm_value/mean.npy"
+      std_path:    "data/newzealand/norm_value/std.npy"
+      tremor_path: "data/newzealand/tremor"
+      mask_key:    "newzealand"
+
+  checkpoint_path: "./Results/multiregion_l2_noembed/00/training_checkpoints/backbone.ckpt"
+  best_checkpoint_path: "./Results/multiregion_l2_noembed/00/training_checkpoints/best_model.ckpt"
+  writer: "./Results/multiregion_l2_noembed/00/tensorboard"
