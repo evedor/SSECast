@@ -17,7 +17,6 @@ multiregion: &multiregion
   patch_size: 2
   token_pairing: "diagonal_fill"   # 共边两三角=一个 token；严格配对失败的单三角再按共边补配（缺员 13%→6%）
   token_order: "auto"             # auto：原生顺序连贯(>=95%)就保留(cascadia)，否则按几何分带重排(其余三区)
-                                  # A/B 实测(alaska, 3 epoch)：banded 的 eval 0.6160 vs 原生 0.6459，测试集增益 +26.8% vs +23.4%
   token_jump_km: 30
   align_tokens: !!bool False     # 多区域布局由 region_registry 单独构建（这里关掉单区域路径）
 
